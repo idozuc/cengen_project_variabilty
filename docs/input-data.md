@@ -8,5 +8,5 @@ metadata are required by clustering: `Cell.type`, `Experiment`, `Size_Factor`,
 
 Raw inputs are never committed. Put local files under `data/raw/` or reference
 an absolute shared path from an untracked configuration file. Production runs
-record the input checksum. WormCat, CeNGEN supplement, GAF, and OBO annotations
+record the input checksum. WormCat and CeNGEN supplement annotations
 are likewise external inputs whose source/version/checksum must be recorded.

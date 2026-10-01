@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build versioned Streamlit assets from current BASiCS and GO outputs."""
+"""Build versioned Streamlit assets from current BASiCS and WormCat outputs."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ try:
 except ImportError:  # Direct script execution.
     from domain import CELL_TYPE_TO_FAMILY, RECEPTOR_TO_LIGANDS
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MASTER_COLUMNS = {
     "cell_type", "stable_id", "gene_name", "Mu", "Delta", "Epsilon", "Prob",
     "HVG", "LVG", "n_cells", "n_experiments", "stress_gene", "analysis_eligible",
 }
-GO_COLUMNS = {
+WORMCAT_COLUMNS = {
     "condition", "cell_type", "term_id", "term", "ontology", "p_value", "q_value",
     "significant", "term_selected_genes",
 }
@@ -29,9 +29,9 @@ GO_COLUMNS = {
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--config", type=Path, help="Optional YAML with master, go, and output_dir")
+    result.add_argument("--config", type=Path, help="Optional YAML with master, wormcat, and output_dir")
     result.add_argument("--master", type=Path, help="Current BASiCS master CSV or CSV.GZ")
-    result.add_argument("--go", type=Path, help="Current supported GO CSV or CSV.GZ")
+    result.add_argument("--wormcat", type=Path, help="Current supported WormCat CSV or CSV.GZ")
     result.add_argument("--output-dir", type=Path, help="Explorer output directory")
     return result
 
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     configured = {}
     if args.config:
         configured = yaml.safe_load(args.config.read_text()) or {}
-    for key in ("master", "go", "output_dir"):
+    for key in ("master", "wormcat", "output_dir"):
         if getattr(args, key) is None and configured.get(key):
             setattr(args, key, Path(configured[key]))
         if getattr(args, key) is None:
@@ -53,6 +53,25 @@ def require_columns(frame: pd.DataFrame, required: set[str], label: str) -> None
     missing = sorted(required.difference(frame.columns))
     if missing:
         raise ValueError(f"{label} lacks required columns: {', '.join(missing)}")
+
+
+def validate_wormcat(frame: pd.DataFrame, cell_types: set[str]) -> None:
+    require_columns(frame, WORMCAT_COLUMNS, "WormCat table")
+    if frame.condition.isna().any() or not frame.condition.eq("supported").all():
+        raise ValueError("WormCat input must contain only the supported condition")
+    if frame[["cell_type", "term_id", "term", "ontology"]].isna().any().any():
+        raise ValueError("WormCat input contains missing category identifiers")
+    if frame.duplicated(["cell_type", "term_id"]).any():
+        raise ValueError("WormCat input contains duplicate cell-type/category keys")
+    if not set(frame.cell_type).issubset(cell_types):
+        raise ValueError("WormCat cell types do not match the BASiCS master")
+    if not frame.ontology.isin(["category_1", "category_2", "category_3"]).all():
+        raise ValueError("WormCat category levels must be category_1, category_2, or category_3")
+    expected = frame.ontology + "::" + frame.term
+    if not frame.term_id.eq(expected).all():
+        raise ValueError("WormCat term IDs do not match their category level and name")
+    if not frame.significant.isin([True, False]).all():
+        raise ValueError("WormCat significant must contain boolean values")
 
 
 def nuisance_class(row: pd.Series) -> str:
@@ -137,29 +156,27 @@ def build_ligand_receptor(master: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     args = parse_args()
     master = pd.read_csv(args.master)
-    go = pd.read_csv(args.go)
+    wormcat = pd.read_csv(args.wormcat)
     require_columns(master, MASTER_COLUMNS, "BASiCS master")
-    require_columns(go, GO_COLUMNS, "GO table")
     key = master.cell_type.astype(str) + "::" + master.stable_id.astype(str)
     if key.duplicated().any():
         raise ValueError("BASiCS master contains duplicate cell-type/gene keys")
-    if set(go.condition.dropna().unique()) != {"supported"}:
-        raise ValueError("GO input must contain only the supported condition")
+    validate_wormcat(wormcat, set(master.cell_type))
 
     master["nuisance"] = master.apply(nuisance_class, axis=1)
     output = args.output_dir
     output.mkdir(parents=True, exist_ok=True)
     master.to_parquet(output / "basics.parquet", index=False)
     build_summary(master).to_parquet(output / "basics_summary.parquet", index=False)
-    go.to_parquet(output / "go_supported.parquet", index=False)
+    wormcat.to_parquet(output / "wormcat_supported.parquet", index=False)
     build_signatures(master).to_csv(output / "neuropeptide_family_signatures.csv", index=False)
     build_ligand_receptor(master).to_csv(output / "gpcr_ligand_receptor_pairs.csv", index=False)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "master_source": str(args.master.resolve()),
-        "go_source": str(args.go.resolve()),
+        "wormcat_source": str(args.wormcat.resolve()),
         "files": [
-            "basics.parquet", "basics_summary.parquet", "go_supported.parquet",
+            "basics.parquet", "basics_summary.parquet", "wormcat_supported.parquet",
             "neuropeptide_family_signatures.csv", "gpcr_ligand_receptor_pairs.csv",
         ],
     }

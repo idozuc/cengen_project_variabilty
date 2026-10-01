@@ -1,6 +1,6 @@
 """
 BASiCS within-type HVG explorer — Streamlit app.
-Run:  /opt/anaconda3/envs/cengen-py/bin/streamlit run scripts/app.py
+Run: streamlit run explorer/app.py
 """
 
 import json
@@ -16,7 +16,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DIR = Path(os.environ.get("CENGEN_OUTPUT_DIR", PROJECT_ROOT / "outputs" / "explorer"))
 CLUSTER_DIR = DIR / "clustering"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+CLUSTER_SCHEMA_VERSION = 1
 
 st.set_page_config(page_title="BASiCS HVG Explorer", layout="wide")
 
@@ -85,12 +86,18 @@ def load():
     for c in ["Mu","Delta","Epsilon","Prob"]:
         df[c] = df[c].round(3)
     summary = pd.read_parquet(DIR / "basics_summary.parquet")
-    go_df = pd.read_parquet(DIR / "go_supported.parquet")
+    wormcat_df = pd.read_parquet(DIR / "wormcat_supported.parquet")
+    try:
+        from explorer.build_assets import validate_wormcat
+    except ImportError:
+        from build_assets import validate_wormcat
+    validate_wormcat(wormcat_df, set(df.cell_type))
+    wormcat_df = wormcat_df[wormcat_df.significant].copy()
     lr = pd.read_csv(DIR / "gpcr_ligand_receptor_pairs.csv")
     sigs = pd.read_csv(DIR / "neuropeptide_family_signatures.csv")
-    return df, summary, go_df, lr, sigs
+    return df, summary, wormcat_df, lr, sigs
 
-df, summary, go_df, lr, sigs = load()
+df, summary, wormcat_df, lr, sigs = load()
 
 # ── nuisance-adjusted clustering assets ──────────────────────────────────────
 @st.cache_data
@@ -99,7 +106,7 @@ def load_cluster_manifest():
     if not path.exists():
         return pd.DataFrame()
     manifest = pd.read_parquet(path)
-    if "schema_version" not in manifest or not (manifest["schema_version"] == SCHEMA_VERSION).all():
+    if "schema_version" not in manifest or not (manifest["schema_version"] == CLUSTER_SCHEMA_VERSION).all():
         raise ValueError(f"Unsupported clustering schema in {path}")
     return manifest.sort_values("cell_type").reset_index(drop=True)
 
@@ -153,7 +160,7 @@ filt = apply_filters(df)
 st.title("BASiCS within-type variability — CeNGEN L4 neurons")
 t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(
     ["📋 Browse", "🔲 Matrix", "🧬 Gene", "🔬 Cell type", "👪 Family",
-     "🧪 GO enrichment", "🔗 Ligand–Receptor", "🫧 Clusters"]
+     "🧪 WormCat enrichment", "🔗 Ligand–Receptor", "🫧 Clusters"]
 )
 
 # ── Tab 1: Browse ────────────────────────────────────────────────────────────
@@ -307,8 +314,9 @@ with t4:
     fig.update_layout(height=max(400, topn*18), yaxis={"categoryorder":"total ascending"})
     st.plotly_chart(fig, width="stretch")
 
-    st.subheader("GO enrichment")
-    cgo = go_df[go_df["cell_type"] == ct].copy()
+    st.subheader("WormCat enrichment")
+    wc_level = st.selectbox("Category level", ["category_1", "category_2", "category_3"], key="wc_cell_level")
+    cgo = wormcat_df[(wormcat_df["cell_type"] == ct) & (wormcat_df["ontology"] == wc_level)].copy()
     if len(cgo):
         cgo["-log10(q)"] = -np.log10(cgo["q_value"].clip(lower=1e-300))
         cgo = cgo.sort_values("-log10(q)", ascending=False)
@@ -319,7 +327,7 @@ with t4:
         st.dataframe(cgo[["ontology","term_id","term","p_value","q_value","term_selected_genes"]],
                      width="stretch", hide_index=True)
     else:
-        st.info(f"No enriched GO terms for {ct}.")
+        st.info(f"No significant supported WormCat categories for {ct} at this level.")
 
 # ── Tab 5: Family ────────────────────────────────────────────────────────────
 with t5:
@@ -361,23 +369,28 @@ with t5:
     st.subheader("Neuropeptide family signatures (HVG in ≥50% of family members)")
     st.dataframe(sigs, width="stretch", hide_index=True)
 
-# ── Tab 6: GO enrichment ─────────────────────────────────────────────────────
+# ── Tab 6: WormCat enrichment ────────────────────────────────────────────────
 with t6:
-    view = st.radio("View", ["By cell type", "By GO term (recurrence)"], horizontal=True)
-    if view == "By cell type":
-        ct = st.selectbox("Cell type", sorted(go_df["cell_type"].unique()), key="go_ct")
-        d = go_df[go_df["cell_type"] == ct].copy()
+    st.caption("Significant HVG enrichment after requiring detection support in at least two experiments.")
+    level = st.selectbox("Category level", ["category_1", "category_2", "category_3"], key="wc_level")
+    categories = wormcat_df[wormcat_df["ontology"] == level]
+    view = st.radio("View", ["By cell type", "By category (recurrence)"], horizontal=True)
+    if categories.empty:
+        st.info("No significant supported WormCat categories at this level.")
+    elif view == "By cell type":
+        ct = st.selectbox("Cell type", sorted(categories["cell_type"].unique()), key="wc_ct")
+        d = categories[categories["cell_type"] == ct].copy()
         d["-log10(q)"] = -np.log10(d["q_value"].clip(lower=1e-300))
         st.dataframe(d[["ontology","term_id","term","p_value","q_value","term_selected_genes"]]
                      .sort_values("q_value"), width="stretch", hide_index=True)
     else:
-        rec = (go_df.groupby(["ontology","term_id","term"])
+        rec = (categories.groupby(["ontology","term_id","term"])
                     .agg(n_types=("cell_type","nunique"),
                          cell_types=("cell_type", lambda x: ", ".join(sorted(x))))
                     .reset_index().sort_values("n_types", ascending=False))
         topk = st.slider("Show top N recurrent terms", 10, 60, 25)
         fig = px.bar(rec.head(topk), x="n_types", y="term", orientation="h", color="ontology",
-                     title="GO terms enriched across the most cell types")
+                     title="WormCat categories enriched across the most cell types")
         fig.update_layout(height=max(400, topk*20), yaxis={"categoryorder":"total ascending"})
         st.plotly_chart(fig, width="stretch")
         st.dataframe(rec, width="stretch", hide_index=True)

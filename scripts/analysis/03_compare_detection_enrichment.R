@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Compare HVG enrichment before and after requiring multi-experiment detection.
+# Compare WormCat HVG enrichment before and after multi-experiment detection.
 suppressPackageStartupMessages({
   library(SingleCellExperiment)
   library(Matrix)
@@ -12,19 +12,17 @@ project_root <- dirname(dirname(dirname(script_path)))
 source(file.path(project_root, "src", "R", "project_io.R"))
 options <- parse_named_arguments(
   commandArgs(trailingOnly = TRUE),
-  list(master = NA_character_, sce = NA_character_, run_dir = NA_character_, gene_classes = NA_character_, go_gaf = NA_character_, go_obo = NA_character_, output_dir = NA_character_),
+  list(master = NA_character_, sce = NA_character_, run_dir = NA_character_, gene_classes = NA_character_, output_dir = NA_character_),
   paste(
     "Usage: Rscript scripts/analysis/03_compare_detection_enrichment.R --master FILE.csv.gz",
-    "--sce FILE.rds --run-dir PATH --gene-classes FILE.csv --go-gaf FILE.gaf.gz",
-    "--go-obo FILE.obo --output-dir PATH [--config PATH]"
+    "--sce FILE.rds --run-dir PATH --gene-classes FILE.csv",
+    "--output-dir PATH [--config PATH]"
   )
 )
 master_file <- normalizePath(require_path_option(options$master, "--master"))
 sce_file <- normalizePath(require_path_option(options$sce, "--sce"))
 run_dir <- normalizePath(require_path_option(options$run_dir, "--run-dir"))
 gene_class_file <- normalizePath(require_path_option(options$gene_classes, "--gene-classes"))
-gaf_file <- normalizePath(require_path_option(options$go_gaf, "--go-gaf"))
-obo_file <- normalizePath(require_path_option(options$go_obo, "--go-obo"))
 output_dir <- require_path_option(options$output_dir, "--output-dir", must_exist = FALSE)
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -83,73 +81,6 @@ index <- match(master_key, support_key)
 if (anyNA(index) || anyDuplicated(support_key)) stop("Support rows do not match master")
 master$robust_detection_support <- support$robust_detection_support[index]
 
-# Read current direct biological-process annotations from the GO GAF.
-gaf <- read.delim(
-  gzfile(gaf_file), header = FALSE, comment.char = "!", quote = "",
-  fill = TRUE, stringsAsFactors = FALSE
-)
-if (ncol(gaf) < 9L) stop("GO GAF has fewer than nine columns")
-direct_go <- unique(data.frame(
-  stable_id = gaf[[2]],
-  qualifier = gaf[[4]],
-  go_id = gaf[[5]],
-  aspect = gaf[[9]],
-  stringsAsFactors = FALSE
-))
-direct_go <- direct_go[
-  direct_go$aspect == "P" & !grepl("(^|\\|)NOT(\\||$)", direct_go$qualifier),
-  c("stable_id", "go_id")
-]
-
-# Parse GO names and is_a/part_of parents for ancestor propagation.
-parse_obo <- function(path) {
-  lines <- readLines(path, warn = FALSE)
-  starts <- which(lines == "[Term]")
-  ends <- c(starts[-1L] - 1L, length(lines))
-  terms <- lapply(seq_along(starts), function(i) {
-    block <- lines[starts[i]:ends[i]]
-    value <- function(prefix) sub(prefix, "", block[startsWith(block, prefix)])
-    id <- value("id: ")
-    if (length(id) != 1L || any(block == "is_obsolete: true")) return(NULL)
-    parents <- c(
-      sub(" !.*$", "", value("is_a: ")),
-      sub(" !.*$", "", sub("^part_of ", "", value("relationship: part_of ")))
-    )
-    data.frame(
-      go_id = id,
-      term = value("name: ")[1],
-      ontology = value("namespace: ")[1],
-      parents = I(list(unique(parents[nzchar(parents)]))),
-      stringsAsFactors = FALSE
-    )
-  })
-  do.call(rbind, terms[!vapply(terms, is.null, logical(1))])
-}
-
-terms <- parse_obo(obo_file)
-terms <- terms[terms$ontology == "biological_process", ]
-parent_map <- setNames(terms$parents, terms$go_id)
-cache <- new.env(parent = emptyenv())
-ancestors <- function(id) {
-  if (exists(id, cache, inherits = FALSE)) return(get(id, cache))
-  parents <- parent_map[[id]]
-  result <- unique(c(id, unlist(lapply(parents, ancestors), use.names = FALSE)))
-  assign(id, result, cache)
-  result
-}
-
-direct_go <- direct_go[direct_go$go_id %in% terms$go_id, ]
-expanded <- lapply(split(direct_go$go_id, direct_go$stable_id), function(ids) {
-  unique(unlist(lapply(unique(ids), ancestors), use.names = FALSE))
-})
-go_pairs <- unique(data.frame(
-  stable_id = rep(names(expanded), lengths(expanded)),
-  term_id = unlist(expanded, use.names = FALSE),
-  stringsAsFactors = FALSE
-))
-go_terms <- unique(terms[c("go_id", "term", "ontology")])
-names(go_terms) <- c("term_id", "term", "ontology")
-
 # Convert the existing WormCat hierarchy into the same gene-term format.
 gene_classes <- read.csv(gene_class_file, stringsAsFactors = FALSE)
 wormcat_pairs <- do.call(rbind, lapply(
@@ -176,7 +107,7 @@ wormcat_terms <- data.frame(
 run_enrichment <- function(pairs, term_table, condition, min_size = 5L,
                            max_size = 500L) {
   annotated <- unique(pairs$stable_id)
-  output <- vector("list", length(tasks))
+  output <- vector("list", nrow(tasks))
 
   for (i in seq_len(nrow(tasks))) {
     type <- tasks$cell_type[i]
@@ -277,11 +208,6 @@ summarize_comparison <- function(comparison, full, supported) {
   }))
 }
 
-go_full <- run_enrichment(go_pairs, go_terms, "full")
-go_supported <- run_enrichment(go_pairs, go_terms, "supported")
-go_comparison <- compare_results(go_full, go_supported)
-go_summary <- summarize_comparison(go_comparison, go_full, go_supported)
-
 wormcat_full <- run_enrichment(wormcat_pairs, wormcat_terms, "full")
 wormcat_supported <- run_enrichment(wormcat_pairs, wormcat_terms, "supported")
 wormcat_comparison <- compare_results(wormcat_full, wormcat_supported)
@@ -297,10 +223,6 @@ write_gz <- function(x, name) {
 }
 support <- support[order(support$cell_type, support$stable_id), ]
 write_gz(support, "gene_experiment_support.csv.gz")
-write_gz(go_full, "go_bp_full.csv.gz")
-write_gz(go_supported, "go_bp_supported.csv.gz")
-write_gz(go_comparison, "go_bp_comparison.csv.gz")
-write.csv(go_summary, file.path(output_dir, "go_bp_celltype_summary.csv"), row.names = FALSE)
 write_gz(wormcat_full, "wormcat_full.csv.gz")
 write_gz(wormcat_supported, "wormcat_supported.csv.gz")
 write_gz(wormcat_comparison, "wormcat_comparison.csv.gz")
@@ -310,23 +232,19 @@ write.csv(
   row.names = FALSE
 )
 
-gaf_header <- readLines(gzfile(gaf_file), n = 4L)
 manifest <- c(
   paste("created_at", format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"), sep = "\t"),
   paste("master", master_file, sep = "\t"),
+  paste("gene_classes_md5", unname(tools::md5sum(gene_class_file)), sep = "\t"),
   paste("sce_md5", unname(tools::md5sum(sce_file)), sep = "\t"),
-  paste("gaf_md5", unname(tools::md5sum(gaf_file)), sep = "\t"),
-  paste("obo_md5", unname(tools::md5sum(obo_file)), sep = "\t"),
   paste("support_rule", "detected in max(3 cells, 5% of cells) in >=2 experiments", sep = "\t"),
   paste("stress_filter", "CeNGen 199-gene list", sep = "\t"),
   paste("term_size", "5 to 500 annotated background genes", sep = "\t"),
-  paste("significance", "BH q<=0.05, fold>1, >=3 selected genes", sep = "\t"),
-  gaf_header
+  paste("significance", "BH q<=0.05, fold>1, >=3 selected genes", sep = "\t")
 )
 writeLines(manifest, file.path(output_dir, "manifest.txt"))
 
 cat(sprintf(
-  "GO significant terms: %d full, %d supported; WormCat: %d full, %d supported\n",
-  sum(go_full$significant), sum(go_supported$significant),
+  "WormCat significant terms: %d full, %d supported\n",
   sum(wormcat_full$significant), sum(wormcat_supported$significant)
 ))

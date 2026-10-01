@@ -1,6 +1,6 @@
 # Explorer
 
-`build_assets.py` converts the current BASiCS master and supported GO results
+`build_assets.py` converts the current BASiCS master and supported WormCat results
 into versioned, compact assets. The R clustering exporter writes the companion
 `clustering/` assets. `app.py` reads only those two current contracts.
 
