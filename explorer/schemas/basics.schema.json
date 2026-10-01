@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CeNGEN explorer BASiCS assets",
+  "type": "object",
+  "required": ["schema_version", "files"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "files": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 5
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,19 @@
+[project]
+name = "cengen-project"
+version = "0.1.0"
+description = "CeNGEN BASiCS, nuisance-adjusted clustering, and explorer workflows"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.1,<3",
+  "plotly>=5.18,<7",
+  "pyarrow>=14,<22",
+  "PyYAML>=6,<7",
+  "streamlit>=1.38,<2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9", "jsonschema>=4.21,<5"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]

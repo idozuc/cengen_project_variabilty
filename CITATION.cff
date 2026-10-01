@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "Please cite the repository release and associated CeNGEN publication."
+title: "CeNGEN within-cell-type variability and clustering workflows"
+type: software
+authors:
+  - name: "CeNGEN project contributors"
+version: 0.1.0
+date-released: 2026-09-21

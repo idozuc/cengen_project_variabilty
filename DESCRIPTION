@@ -1,0 +1,24 @@
+Package: cengenproject
+Type: Project
+Title: CeNGEN Within-Cell-Type Analysis Workflows
+Version: 0.1.0
+Authors@R: person("CeNGEN", "Contributors", role = c("aut", "cre"), email = "maintainers@example.org")
+Description: Reproducible BASiCS, nuisance-adjusted clustering, and explorer workflows.
+License: file LICENSE
+Encoding: UTF-8
+Imports:
+    arrow,
+    BASiCS,
+    coda,
+    irlba,
+    Matrix,
+    mclust,
+    plotly,
+    readxl,
+    shiny,
+    SingleCellExperiment,
+    uwot,
+    viridisLite,
+    yaml
+Suggests:
+    testthat

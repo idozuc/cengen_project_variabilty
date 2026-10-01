@@ -1,0 +1,25 @@
+{
+  "R": {
+    "Version": "4.4.1",
+    "Repositories": [
+      {"Name": "CRAN", "URL": "https://cloud.r-project.org"}
+    ]
+  },
+  "Bioconductor": {"Version": "3.20"},
+  "Packages": {
+    "BASiCS": {"Package": "BASiCS", "Version": "2.18.0", "Source": "Bioconductor"},
+    "SingleCellExperiment": {"Package": "SingleCellExperiment", "Version": "1.28.1", "Source": "Bioconductor"},
+    "Matrix": {"Package": "Matrix", "Version": "1.7-0", "Source": "Repository", "Repository": "CRAN"},
+    "arrow": {"Package": "arrow", "Version": "17.0.0", "Source": "Repository", "Repository": "CRAN"},
+    "coda": {"Package": "coda", "Version": "0.19-4.1", "Source": "Repository", "Repository": "CRAN"},
+    "irlba": {"Package": "irlba", "Version": "2.3.5.1", "Source": "Repository", "Repository": "CRAN"},
+    "mclust": {"Package": "mclust", "Version": "6.1.1", "Source": "Repository", "Repository": "CRAN"},
+    "plotly": {"Package": "plotly", "Version": "4.10.4", "Source": "Repository", "Repository": "CRAN"},
+    "readxl": {"Package": "readxl", "Version": "1.4.3", "Source": "Repository", "Repository": "CRAN"},
+    "shiny": {"Package": "shiny", "Version": "1.9.1", "Source": "Repository", "Repository": "CRAN"},
+    "uwot": {"Package": "uwot", "Version": "0.2.2", "Source": "Repository", "Repository": "CRAN"},
+    "viridisLite": {"Package": "viridisLite", "Version": "0.4.2", "Source": "Repository", "Repository": "CRAN"},
+    "testthat": {"Package": "testthat", "Version": "3.2.1.1", "Source": "Repository", "Repository": "CRAN"},
+    "yaml": {"Package": "yaml", "Version": "2.3.10", "Source": "Repository", "Repository": "CRAN"}
+  }
+}

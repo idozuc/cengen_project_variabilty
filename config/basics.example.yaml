@@ -1,0 +1,13 @@
+sce: data/raw/L4_neuron_sce.rds
+run_dir: outputs/basics/example
+min_cells_per_experiment: 10
+min_experiments: 3
+strong_cells_per_experiment: 20
+min_detected_cells: 10
+min_detected_experiments: 2
+n_iterations: 20000
+burn: 10000
+thin: 10
+percentile_threshold: 0.90
+efdr: 0.10
+min_ess: 100
