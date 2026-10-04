@@ -9,7 +9,7 @@ SingleCellExperiment
 └── BASiCS runner
     ├── fit, diagnostics, LVG, experiment support
     ├── canonical master table
-    └── GO/WormCat enrichment
+    └── WormCat enrichment
         └── explorer asset builder
 
 clustering assets + BASiCS assets → Streamlit explorer

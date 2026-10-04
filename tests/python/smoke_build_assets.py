@@ -28,21 +28,21 @@ def main() -> None:
             "n_cells": [30, 30, 25, 25], "n_experiments": [3] * 4,
             "stress_gene": [False] * 4, "analysis_eligible": [True] * 4,
         })
-        go = pd.DataFrame({
-            "condition": ["supported"], "cell_type": ["SMD"], "term_id": ["GO:1"],
-            "term": ["test process"], "ontology": ["biological_process"],
+        wormcat = pd.DataFrame({
+            "condition": ["supported"], "cell_type": ["SMD"], "term_id": ["category_1::test process"],
+            "term": ["test process"], "ontology": ["category_1"],
             "p_value": [0.001], "q_value": [0.01], "significant": [True],
             "term_selected_genes": [3],
         })
-        master_path, go_path, output = work / "master.csv.gz", work / "go.csv.gz", work / "assets"
+        master_path, wormcat_path, output = work / "master.csv.gz", work / "wormcat.csv.gz", work / "assets"
         master.to_csv(master_path, index=False)
-        go.to_csv(go_path, index=False)
+        wormcat.to_csv(wormcat_path, index=False)
         subprocess.run([
             sys.executable, str(root / "explorer" / "build_assets.py"),
-            "--master", str(master_path), "--go", str(go_path), "--output-dir", str(output),
+            "--master", str(master_path), "--wormcat", str(wormcat_path), "--output-dir", str(output),
         ], check=True)
         manifest = json.loads((output / "schema_manifest.json").read_text())
-        assert manifest["schema_version"] == 1
+        assert manifest["schema_version"] == 2
         assert len(pd.read_parquet(output / "basics.parquet")) == 4
     finally:
         if context is not None:

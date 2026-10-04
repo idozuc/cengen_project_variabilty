@@ -405,7 +405,6 @@ Entry point: `scripts/analysis/03_compare_detection_enrichment.R`.
 - Master table and original SCE.
 - Prepared BASiCS run.
 - `gene_classes.csv`.
-- A versioned WormBase GO GAF (`.gaf.gz`) and GO ontology (`.obo`).
 
 ```bash
 Rscript scripts/analysis/03_compare_detection_enrichment.R \
@@ -413,21 +412,18 @@ Rscript scripts/analysis/03_compare_detection_enrichment.R \
   --sce data/raw/L4_neuron_sce.rds \
   --run-dir outputs/basics/RUN_ID \
   --gene-classes outputs/basics/RUN_ID/analysis/gene_classes.csv \
-  --go-gaf /path/to/annotations.gaf.gz \
-  --go-obo /path/to/go-basic.obo \
   --output-dir outputs/basics/RUN_ID/analysis/support
 ```
 
 ### Output
 
 - `gene_experiment_support.csv.gz`.
-- `go_bp_full.csv.gz`, `go_bp_supported.csv.gz`, and `go_bp_comparison.csv.gz`.
 - `wormcat_full.csv.gz`, `wormcat_supported.csv.gz`, and
   `wormcat_comparison.csv.gz`.
-- `go_bp_celltype_summary.csv`, `wormcat_celltype_summary.csv`, and
+- `wormcat_celltype_summary.csv` and
   `manifest.txt` with annotation/input checksums and testing rules.
 
-`go_bp_supported.csv.gz` is the GO input used by the explorer.
+`wormcat_supported.csv.gz` is the WormCat input used by the explorer.
 
 ## 13. Add plotting-friendly detection columns (optional)
 
@@ -456,12 +452,12 @@ Entry point: `explorer/build_assets.py`.
 ### Input
 
 - `basics_master.csv.gz` from step 9.
-- `go_bp_supported.csv.gz` from step 12.
+- `wormcat_supported.csv.gz` from step 12.
 
 ```bash
 python explorer/build_assets.py \
   --master outputs/basics/RUN_ID/basics_master.csv.gz \
-  --go outputs/basics/RUN_ID/analysis/support/go_bp_supported.csv.gz \
+  --wormcat outputs/basics/RUN_ID/analysis/support/wormcat_supported.csv.gz \
   --output-dir outputs/explorer
 ```
 
@@ -471,7 +467,7 @@ python explorer/build_assets.py \
 outputs/explorer/
 ├── basics.parquet
 ├── basics_summary.parquet
-├── go_supported.parquet
+├── wormcat_supported.parquet
 ├── neuropeptide_family_signatures.csv
 ├── gpcr_ligand_receptor_pairs.csv
 ├── schema_manifest.json
@@ -479,7 +475,11 @@ outputs/explorer/
 ```
 
 The builder validates required columns, unique cell-type/gene keys, and that
-the GO input contains only the supported condition.
+the WormCat input contains only the supported condition.
+
+These assets use schema version 2; rebuild existing version-1 explorer assets.
+Clustering assets retain schema version 1 and do not need re-exporting.
+The app displays significant categories only, with category levels 1–3.
 
 ## 15. Launch the explorer
 
@@ -503,7 +503,7 @@ CENGEN_OUTPUT_DIR=/absolute/path/to/explorer/assets \
 ### Output
 
 A local interactive web application with Browse, Matrix, Gene, Cell type,
-Family, GO enrichment, Ligand–Receptor, and accepted Clusters tabs. Download
+Family, WormCat enrichment, Ligand–Receptor, and accepted Clusters tabs. Download
 buttons generate tables in the user’s browser; the app does not modify analysis
 results.
 

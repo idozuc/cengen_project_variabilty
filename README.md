@@ -42,7 +42,7 @@ For a single end-to-end sequence with every input and output, use
   visualization bundles, and portable explorer exports.
 - `scripts/basics`: checkpointed BASiCS fits, convergence diagnostics, LVG
   calls, experiment support, and a canonical master table.
-- `scripts/analysis`: mappings and GO/WormCat enrichment.
+- `scripts/analysis`: mappings and WormCat enrichment.
 - `explorer`: versioned asset builder and Streamlit UI.
 
 The R/Shiny cluster viewer remains an optional diagnostic; Streamlit is the
