@@ -1,0 +1,16 @@
+% Shared TikZ styles for the Methods workflow figures.
+\usepackage{sansmath}
+\renewcommand{\familydefault}{\sfdefault}
+\sansmath
+\newcommand{\step}[2]{\textbf{#1}\\[1pt]{\footnotesize #2}}
+\tikzset{
+  box/.style={draw, rounded corners=2pt, align=flush center, text width=10.4cm,
+              inner sep=5pt, font=\small, line width=0.6pt},
+  data/.style={box, draw=black!55, fill=black!6},
+  proc/.style={box, draw=blue!55!black, fill=blue!7},
+  filt/.style={box, draw=orange!75!black, fill=orange!10},
+  result/.style={box, draw=green!45!black, fill=green!8},
+  note/.style={align=left, font=\footnotesize\itshape, text=black!70},
+  side/.style={box, text width=3.9cm, dashed, draw=black!55, fill=white},
+  flow/.style={-{Stealth[length=2.2mm]}, line width=0.7pt, draw=black!65},
+}

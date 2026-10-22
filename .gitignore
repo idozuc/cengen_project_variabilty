@@ -20,9 +20,11 @@ data/processed/*
 outputs/clustering/*
 outputs/basics/*
 outputs/explorer/*
+outputs/figures/*
 !outputs/clustering/README.md
 !outputs/basics/README.md
 !outputs/explorer/README.md
+!outputs/figures/README.md
 
 config/*.yaml
 !config/*.example.yaml

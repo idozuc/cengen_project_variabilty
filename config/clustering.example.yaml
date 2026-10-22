@@ -4,6 +4,7 @@ run_id: example
 cell_type: all
 screen_only: false
 overwrite: false
+exclude_transgenes: true
 seed: 20260809
 min_experiment_cells: 5
 max_features: 3000

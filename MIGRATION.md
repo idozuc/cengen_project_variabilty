@@ -23,15 +23,34 @@ but not modified. Files were reorganized as follows.
 | `HVG/basics/run_basics.sh` | `slurm/run_basics_array.sh` |
 | `HVG/basics/run_lvg.sh` | `slurm/run_lvg_array.sh` |
 | `tmp/entropy_streamlit/app.py` | `explorer/app.py` |
+| `Clustering_transgene_excluded/transgene_genes.R` | `src/R/transgene_genes.R` |
+| `Clustering_transgene_excluded/empty_cluster_guard.R` | `src/R/empty_cluster_guard.R` |
+| `Clustering_transgene_excluded/run_positive_controls_transgene_excluded.R` (GMM part) | `scripts/clustering/run_positive_controls.R` |
+| `HVG/Analysis/07_wormcat_cengen_filtered.py` (threshold-2 result) | `scripts/analysis/05_wormcat_cengen_filtered.py` |
+| `figure_scripts_for_sending/` (manuscript figure scripts) | `scripts/figures/` |
 
 ## Deliberately excluded
 
 - `Clustering/Unimportant`, experimental GLM-PCA comparisons, and historical reports.
 - The alternative scran workflow under `HVG/R` and `HVG/run_scran_hvg.R`.
-- Figure and manuscript generation.
 - `Rlib*`, Python caches, histories, temporary files, and local environments.
 - Raw SCE files, BASiCS chains, completed runs, generated figures, and exports.
 - The separate `entropy` project; the explorer now has an in-repository asset builder.
 
 Scientific algorithms and thresholds were retained. Changes are limited to
 layout, configuration, portability, output contracts, validation, and provenance.
+
+## Changes since the migration
+
+The manuscript uses the transgene-excluded clustering run, so the clustering
+runner now matches it by default:
+
+- The 17 CeNGEN transgene genes are excluded from the clustering features
+  (`--keep-transgenes` restores the original behaviour).
+- A resolution whose fit leaves a mixture component empty is marked unstable
+  instead of stopping the whole cell type. Fits without an empty component are
+  unaffected.
+
+The positive controls, the CeNGEN-filtered WormCat enrichment and the figure
+scripts were added. Each reproduces the original outputs (RUNBOOK steps
+16–18, `docs/figures.md`).

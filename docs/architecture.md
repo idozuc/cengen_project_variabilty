@@ -2,17 +2,18 @@
 
 ```text
 SingleCellExperiment
-├── clustering runner
+├── clustering runner (and positive controls)
 │   ├── screen and resolution diagnostics
 │   ├── accepted markers and visualization bundle
 │   └── clustering explorer exporter
 └── BASiCS runner
     ├── fit, diagnostics, LVG, experiment support
     ├── canonical master table
-    └── GO/WormCat enrichment
+    └── GO/WormCat enrichment (standard and CeNGEN-filtered)
         └── explorer asset builder
 
 clustering assets + BASiCS assets → Streamlit explorer
+clustering run + positive controls + BASiCS outputs → manuscript figures
 ```
 
 R reusable functions live in `src/R`; executable orchestration lives in

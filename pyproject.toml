@@ -9,11 +9,15 @@ dependencies = [
   "plotly>=5.18,<7",
   "pyarrow>=14,<22",
   "PyYAML>=6,<7",
+  "scipy>=1.11,<2",
   "streamlit>=1.38,<2",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8,<9", "jsonschema>=4.21,<5"]
+# Versions that reproduced the manuscript panels exactly; newer umap-learn or
+# numba can rotate or mirror the UMAP layouts.
+figures = ["matplotlib==3.8.0", "seaborn==0.12.2", "umap-learn==0.5.12", "numba==0.59.0", "numpy==1.26.4"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]

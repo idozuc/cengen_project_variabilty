@@ -1,0 +1,5 @@
+sce: data/raw/L4_neuron_sce.rds
+basics_dir: outputs/basics/example
+clustering_dir: outputs/clustering/example
+positive_controls: outputs/clustering/positive_controls.rds
+output_dir: outputs/figures/example

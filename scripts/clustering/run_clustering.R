@@ -28,6 +28,9 @@ project_root <- dirname(dirname(dirname(script_path)))
 source(file.path(project_root, "src", "R", "clustering.R"))
 source(file.path(project_root, "src", "R", "clustering_visualization.R"))
 source(file.path(project_root, "src", "R", "stress_gene_sets.R"))
+source(file.path(project_root, "src", "R", "transgene_genes.R"))
+# Must follow clustering.R, whose stability function it wraps.
+source(file.path(project_root, "src", "R", "empty_cluster_guard.R"))
 
 required_packages <- c(
   "SingleCellExperiment",
@@ -60,6 +63,7 @@ runner_defaults <- list(
   cell_type = "all",
   screen_only = FALSE,
   overwrite = FALSE,
+  exclude_transgenes = TRUE,
   seed = 20260809L,
   min_experiment_cells = 5L,
   max_features = 3000L,
@@ -92,6 +96,7 @@ print_usage <- function() {
       "  --run-id VALUE      run directory name (default: default)",
       "  --screen-only       stop after the cheap PCA/GMM pass",
       "  --overwrite         recompute terminal results",
+      "  --keep-transgenes   keep the CeNGEN transgene genes as features",
       "  --seed INTEGER      random seed",
       "  --stability INTEGER stability repetitions (default 50)",
       "  --help              print this help",
@@ -156,6 +161,9 @@ parse_runner_arguments <- function(arguments, defaults = runner_defaults) {
       index <- index + 1L
     } else if (argument == "--overwrite") {
       config$overwrite <- TRUE
+      index <- index + 1L
+    } else if (argument == "--keep-transgenes") {
+      config$exclude_transgenes <- FALSE
       index <- index + 1L
     } else {
       stop("Unknown argument: ", argument)
@@ -304,9 +312,15 @@ prepare_cell_type_for_gmm <- function(
 
   # Exclude every matched stress gene, including stress genes that were too
   # rare to enter the score, so clustering cannot rediscover the stress list.
+  # Transgene genes are excluded too: their CeNGEN counts reflect the sorting
+  # constructs, not the neuron.
+  excluded_features <- stress_selection$matched
+  if (isTRUE(config$exclude_transgenes)) {
+    excluded_features <- union(excluded_features, transgene_ids)
+  }
   candidate_features <- select_candidate_features(
     counts = counts,
-    excluded_features = stress_selection$matched,
+    excluded_features = excluded_features,
     min_total_count = config$min_total_count
   )
 

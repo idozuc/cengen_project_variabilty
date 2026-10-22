@@ -41,7 +41,9 @@ python -m pip install -e '.[test]'
 ```
 
 **Output:** an ignored `.venv/` with pandas, PyArrow, Streamlit, Plotly,
-PyYAML, pytest, and schema-validation packages.
+PyYAML, SciPy, pytest, and schema-validation packages. For the manuscript
+figures (step 18) install `-e '.[test,figures]'`, which pins matplotlib,
+seaborn, and umap-learn to the versions that reproduced the panels.
 
 ## 1. Supply the shared input data
 
@@ -79,6 +81,9 @@ Entry point: `scripts/clustering/run_clustering.R`.
 
 - The SCE described above.
 - The embedded 199-gene stress set from `src/R/stress_gene_sets.R`.
+- The embedded 17 CeNGEN transgene genes from `src/R/transgene_genes.R`,
+  excluded from the clustering features by default. Supply
+  `--keep-transgenes` (or `exclude_transgenes: false`) to keep them.
 - Optional `config/clustering.yaml`, copied from the example.
 
 ```bash
@@ -104,7 +109,8 @@ residualizes experiment/stress/library-size nuisances, selects variable
 features and PCs, screens Gaussian mixtures, and then runs stability and
 nuisance diagnostics for multi-cluster candidates. Accepted candidates receive
 marker, driver, feature-summary, and UMAP outputs. UMAP never determines the
-clusters.
+clusters. A resolution whose fit leaves a mixture component empty is marked
+unstable (`src/R/empty_cluster_guard.R`) instead of stopping the cell type.
 
 ### Output
 
@@ -429,7 +435,7 @@ Rscript scripts/analysis/03_compare_detection_enrichment.R \
 
 `go_bp_supported.csv.gz` is the GO input used by the explorer.
 
-## 13. Add plotting-friendly detection columns (optional)
+## 13. Add detection columns
 
 Entry point: `scripts/analysis/04_add_detection_columns.R`.
 
@@ -446,8 +452,8 @@ Rscript scripts/analysis/04_add_detection_columns.R \
 ### Output
 
 The same master rows plus `pct_zero` and a readable
-`experiment_detection` ratio. This file is optional and is not required by the
-explorer.
+`experiment_detection` ratio. The explorer does not need this file; the
+CeNGEN-filtered enrichment (step 17) and the figures (step 18) do.
 
 ## 14. Build BASiCS assets for Streamlit
 
@@ -507,7 +513,88 @@ Family, GO enrichment, Ligand–Receptor, and accepted Clusters tabs. Download
 buttons generate tables in the user’s browser; the app does not modify analysis
 results.
 
-## 16. Validation before handoff or publication
+## 16. Run the clustering positive controls
+
+Entry point: `scripts/clustering/run_positive_controls.R`.
+
+### Input
+
+- The SCE. ASEL + ASER and AWC_ON + AWC_OFF are each pooled into one
+  pseudo-cell-type and clustered with the same steps and thresholds as step 2,
+  including the transgene exclusion (`--exclude-transgenes false` to keep them).
+
+```bash
+Rscript scripts/clustering/run_positive_controls.R \
+  --sce data/raw/L4_neuron_sce.rds \
+  --output outputs/clustering/positive_controls.rds
+```
+
+### Output
+
+One RDS with, per pair, the selected G and labels, the known identities, the
+ARI between them, the resolution ladder, and the selected PC scores.
+
+## 17. Run CeNGEN-filtered WormCat enrichment
+
+Entry point: `scripts/analysis/05_wormcat_cengen_filtered.py`.
+
+### Input
+
+- `basics_master_with_detection.csv.gz` from step 13.
+- WormCat whole-genome CSV (as in step 10).
+- CeNGEN gene × cell-type call table at threshold 2
+  (`021821_medium_threshold2.csv`).
+
+```bash
+python scripts/analysis/05_wormcat_cengen_filtered.py \
+  --master outputs/basics/RUN_ID/basics_master_with_detection.csv.gz \
+  --wormcat /path/to/wormcat_whole_genome.csv \
+  --cengen-calls /path/to/021821_medium_threshold2.csv \
+  --output outputs/basics/RUN_ID/analysis/wormcat_hvg_cengen_t2.csv
+```
+
+### Processing
+
+HVGs are BASiCS HVG calls among analysis-eligible pairs that are detected in
+more than half of the cell type's experiments. Pairs that CeNGEN calls not
+expressed are removed from both the HVGs and the background; cell types
+without CeNGEN calls are dropped. The test follows the WormCat tool: a
+one-sided hypergeometric test against the annotated background, with
+Benjamini–Hochberg within each cell type and level over categories that
+contain at least one HVG.
+
+### Output
+
+`wormcat_hvg_cengen_t2.csv`: the rows with FDR ≤ 0.05. This is the enrichment
+reported in the manuscript; step 11 is the unfiltered standard analysis.
+
+## 18. Build the manuscript figures
+
+Entry point: `scripts/figures/run_all.sh`. See `docs/figures.md` for what each
+script reads and writes.
+
+### Input
+
+- The SCE, the clustering run from step 2, the positive controls from step 16,
+  and the BASiCS run directory with the outputs of steps 10, 13, and 17.
+- `config/figures.yaml`, copied from the example.
+- pdflatex with TikZ for the two workflow diagrams.
+
+```bash
+cp config/figures.example.yaml config/figures.yaml
+# Edit the paths before continuing.
+scripts/figures/run_all.sh config/figures.yaml
+```
+
+### Output
+
+```text
+outputs/figures/RUN_ID/
+├── data/      # intermediate tables from scripts/figures/0*_export_*.R
+└── panels/    # figNN[A-F]_*.svg|pdf, one file per figure panel
+```
+
+## 19. Validation before handoff or publication
 
 ```bash
 # Parse R, compile Python, and check shell syntax.

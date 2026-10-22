@@ -42,7 +42,10 @@ For a single end-to-end sequence with every input and output, use
   visualization bundles, and portable explorer exports.
 - `scripts/basics`: checkpointed BASiCS fits, convergence diagnostics, LVG
   calls, experiment support, and a canonical master table.
-- `scripts/analysis`: mappings and GO/WormCat enrichment.
+- `scripts/analysis`: mappings, GO/WormCat enrichment, and the CeNGEN-filtered
+  WormCat enrichment reported in the manuscript.
+- `scripts/clustering/run_positive_controls.R`: ASE and AWC positive controls.
+- `scripts/figures`: manuscript figures (`docs/figures.md`).
 - `explorer`: versioned asset builder and Streamlit UI.
 
 The R/Shiny cluster viewer remains an optional diagnostic; Streamlit is the
